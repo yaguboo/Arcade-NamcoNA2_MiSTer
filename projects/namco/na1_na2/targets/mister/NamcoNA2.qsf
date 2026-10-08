@@ -1,0 +1,116 @@
+# --------------------------------------------------------------------------
+#
+# MiSTer project
+#
+# WARNING WARNING WARNING:
+# Do not add files to project in Quartus IDE! It will mess this file!
+# Add the files manually to files.qip file.
+#
+# --------------------------------------------------------------------------
+
+set_global_assignment -name TOP_LEVEL_ENTITY sys_top
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+
+set_global_assignment -name LAST_QUARTUS_VERSION "17.0.0 Lite Edition"
+
+set_global_assignment -name GENERATE_RBF_FILE ON
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+set_global_assignment -name SAVE_DISK_SPACE OFF
+set_global_assignment -name SMART_RECOMPILE ON
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP "-40"
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 100
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS OFF
+set_global_assignment -name OPTIMIZE_POWER_DURING_FITTING OFF
+set_global_assignment -name FINAL_PLACEMENT_OPTIMIZATION ALWAYS
+# Tried "AUTO FIT" to shorten the build; quartus_fit 17.0 then died with an
+# access violation in sta_find_duplicates_of_deleted_net_name during physical
+# synthesis.  Not worth chasing -- the build-time win came from the two
+# MISTER_DISABLE macros below instead (synthesis 2:55 -> 1:25).
+set_global_assignment -name FITTER_EFFORT "STANDARD FIT"
+set_global_assignment -name OPTIMIZATION_MODE "HIGH PERFORMANCE EFFORT"
+set_global_assignment -name ALLOW_POWER_UP_DONT_CARE ON
+set_global_assignment -name QII_AUTO_PACKED_REGISTERS NORMAL
+set_global_assignment -name ROUTER_LCELL_INSERTION_AND_LOGIC_DUPLICATION ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC OFF
+# Physical synthesis turned OFF 2026-08-22, all of it.
+#
+# Quartus 17.0's fitter dies with an access violation inside
+# sta_find_duplicates_of_deleted_net_name immediately after the physical
+# synthesis passes run -- STA then walks nets those passes deleted.  It was
+# intermittent for months; this session's diagnostic registers made it
+# reliable, and it kept crashing at the same point with
+# PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION already off.  Five crashes in a row.
+#
+# The core clock had +2.7 ns of slack with these on, so the optimisation is
+# affordable, and build.sh now fails the build if End-trace appears rather than
+# leaving a stale .rbf looking finished.  Turn them back on and re-measure if a
+# later Quartus is ever used.
+# Turned OFF 2026-08-22.  Quartus 17.0's fitter dies with an access violation
+# in sta_find_duplicates_of_deleted_net_name immediately after physical
+# synthesis reports "Created N register duplicates" -- STA then walks nets that
+# the duplication pass deleted.  It was intermittent for months and became
+# reliable once this session's diagnostic registers pushed the duplicate count
+# up (188 on the failing run).  Three retries in a row crashed at the same
+# point, so "just run it again" (KNOWN_ISSUES.md lesson 11) has stopped being
+# the answer.  Timing has ~3.7 ns of slack on the core clock, so the lost
+# optimisation is affordable; check_pll and the Setup Summary still gate it.
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION OFF
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING OFF
+set_global_assignment -name OPTIMIZATION_TECHNIQUE SPEED
+set_global_assignment -name MUX_RESTRUCTURE ON
+set_global_assignment -name REMOVE_REDUNDANT_LOGIC_CELLS ON
+set_global_assignment -name AUTO_DELAY_CHAINS_FOR_HIGH_FANOUT_INPUT_PINS ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA OFF
+set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
+set_global_assignment -name SYNTH_GATED_CLOCK_CONVERSION ON
+set_global_assignment -name PRE_MAPPING_RESYNTHESIS ON
+set_global_assignment -name ROUTER_CLOCKING_TOPOLOGY_ANALYSIS ON
+set_global_assignment -name ECO_OPTIMIZE_TIMING ON
+set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING OFF
+set_global_assignment -name ALM_REGISTER_PACKING_EFFORT MEDIUM
+# 2026-08-23: seed 1 placed the HDMI PLL domain at -0.044 ns setup on this
+# RTL.  The path is in MiSTer framework code and the same clock has read from
+# -0.044 to +0.720 across builds, so the seed is the knob, not the design.
+# build.sh now fails a build that does not meet timing, which is what made this
+# visible at all.
+set_global_assignment -name SEED 3
+
+# Rotation for the two vertical games (fghtatck, fa) needs the DDRAM
+# framebuffer: sys/arcade_video.v's screen_rotate writes the turned
+# picture into DDR and the scaler reads it back through the FB_* ports,
+# which only exist when this is defined.  Added 2026-08-26.
+set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
+
+#enable it only if 8bit indexed mode is used in core
+#set_global_assignment -name VERILOG_MACRO "MISTER_FB_PALETTE=1"
+
+#do not enable DEBUG_NOHDMI in release!
+#set_global_assignment -name VERILOG_MACRO "MISTER_DEBUG_NOHDMI=1"
+
+# disable bilinear filtering when downscaling
+#set_global_assignment -name VERILOG_MACRO "MISTER_DOWNSCALE_NN=1"
+
+# disable adaptive scanline filtering
+#set_global_assignment -name VERILOG_MACRO "MISTER_DISABLE_ADAPTIVE=1"
+
+#use only 1MB per frame for scaler to free ~21MB DDR3 RAM
+#set_global_assignment -name VERILOG_MACRO "MISTER_SMALL_VBUF=1"
+
+# Disable YC / Composite output to save some resources
+# Neither is used by this core, and leaving them out makes the build faster and
+# the fit easier.
+set_global_assignment -name VERILOG_MACRO "MISTER_DISABLE_YC=1"
+
+# Disable ALSA audio output to save some resources
+set_global_assignment -name VERILOG_MACRO "MISTER_DISABLE_ALSA=1"
+
+source ../../../../../platforms/mister/sys/sys.tcl
+source ../../../../../platforms/mister/sys/sys_analog.tcl
+source files.qip
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

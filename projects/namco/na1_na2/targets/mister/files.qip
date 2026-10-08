@@ -1,0 +1,59 @@
+# --------------------------------------------------------------------------
+# Namco NA-2 (Numan Athletics) -- source list
+#
+# Add files here, never through the Quartus IDE (it rewrites the .qsf).
+# --------------------------------------------------------------------------
+
+# ---- MiSTer board wrapper -------------------------------------------------
+set_global_assignment -name SYSTEMVERILOG_FILE NamcoNA2.sv
+set_global_assignment -name SDC_FILE NamcoNA2.sdc
+
+# ---- PLL (retargeted to 50.113 MHz; see rtl/pll/pll_0002.v) ---------------
+set_global_assignment -name QIP_FILE rtl/pll.qip
+
+# ---- shared definitions ---------------------------------------------------
+set_global_assignment -name SEARCH_PATH ../../rtl/common
+# 2026-09-09, third_party consolidation.  fx68k loads its microcode with a BARE filename -- $readmemb("microrom.mem").
+# An unresolved $readmemb gives an EMPTY microcode ROM and a 68000 that does
+# nothing, so the path is declared rather than left to the tool's file search.
+set_global_assignment -name SEARCH_PATH ../../../../../third_party/cpu/fx68k
+# 2026-09-09, third_party consolidation.  NamcoNA2.sv keeps the standard MiSTer `include "sys/emu_ports.vh"`.
+# With the framework shared, platforms/mister is the directory that makes
+# that include resolve.
+set_global_assignment -name SEARCH_PATH ../../../../../platforms/mister
+
+# ---- 68000 (fx68k, GPLv3, (c) Jorge Cwik -- unmodified) -------------------
+set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../third_party/cpu/fx68k/fx68kAlu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../third_party/cpu/fx68k/uaddrPla.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../../../../third_party/cpu/fx68k/fx68k.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/cpu/na2_m68k.sv
+
+# ---- NA-2 core ------------------------------------------------------------
+# ---- C70 = Mitsubishi M37702 MCU ------------------------------------------
+# The CPU core is VHDL-2008 and vendored (GPLv2-or-later); see LICENSE_NOTES.md
+# and docs/m37702_survey.md.  na2_c70_hle stays in the build so na2_top's
+# USE_REAL_C70 parameter can select the old stand-in for a bisect.
+set_global_assignment -name VHDL_FILE ../../rtl/mcu/na2_m37702_cpu.vhd -hdl_version VHDL_2008
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/mcu/na2_m37702_periph.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/mcu/na2_c70.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/mcu/na2_c70_hle.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/keycus/na2_keycus.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_cgmem.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_vram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_crtc.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_blitter.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_palette.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_bgpal_hold.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/sound/na2_c219.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_linebuf.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_tilemap.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_sprite.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_roz.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_pixline.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_video.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/video/na2_dbg.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/memory/na2_eeprom.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../integration/na2_eeprom_nvport.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/memory/na2_sdram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../integration/na2_membus.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/na2_top.sv

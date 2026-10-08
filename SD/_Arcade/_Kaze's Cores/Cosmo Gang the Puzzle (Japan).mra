@@ -1,0 +1,112 @@
+<misterromdescription>
+    <name>Cosmo Gang the Puzzle (Japan)</name>
+    <setname>cgangpzlj</setname>
+    <year>1992</year>
+    <manufacturer>Namco</manufacturer>
+    <rbf>NamcoNA2</rbf>
+    <mameversion>0289</mameversion>
+    <region>Japan</region>
+    <category>Puzzle</category>
+    <platform>Namco NA-1</platform>
+
+    <!-- KEYCUS: C356, identity word 0x0164 at word offset 1
+         Sent to the core as data, in the ioctl_index 1 block below. -->
+
+    <!-- ROM stream, ioctl_index 0.  Layout must match rtl/common/na2_pkg.svh (ROMDL_* defines)
+           0x000000..0x1FFFFF  maincpu  (2097152 bytes)
+           0x200000..0x9FFFFF  maskrom  (8388608 bytes)
+           0xA00000..0xA03FFF  mcu      (16384 bytes)
+         Interleave: map="01" is the EVEN byte (68000 D15-D8, the "u" ROM),
+                     map="10" is the ODD  byte (68000 D7-D0,  the "l" ROM).
+         Unpopulated mask ROM reads 0x00 (MAME ROM_REGION flags for this set).
+    -->
+    <rom index="0" zip="cgangpzlj.zip|cgangpzl.zip|namcoc69.zip" md5="none">
+        <!-- maincpu -->
+        <interleave output="16">
+            <part name="cp1-ep0u.4f" crc="94d7d6fc" map="01"/>
+            <part name="cp1-ep0l.4c" crc="2825f7ba" map="10"/>
+        </interleave>
+        <part repeat="0x100000">FF</part>   <!-- to the end of the region -->
+        <!-- maskrom -->
+        <part repeat="0x800000">00</part>   <!-- unpopulated -->
+        <!-- mcu -->
+        <part name="c69.bin" crc="349134d9"/>
+    </rom>
+
+    <!-- KEYCUS descriptor, ioctl_index 1: identity high byte, identity low
+         byte, word offset.  The key chip is part of the ROM board this file
+         describes, so which one is socketed is data here rather than a
+         constant compiled into the core: one .rbf runs every set in the
+         family.  A core that expects this block and does not get it falls
+         back to C359 at offset 1, so an .mra written before it existed still
+         runs Numan Athletics.  See rtl/keycus/na2_keycus.sv.
+
+         BYTE 3 is board feature flags:
+           bit 0  this cabinet is VERTICAL, so the core offers Rotate/Flip
+           bit 1  ... and turns it counter-clockwise rather than clockwise
+           bit 2  show the Debug page in the OSD
+
+         BYTES 4-6 are what the OSD options COME UP as for this set, as
+         status bits 23..0, most significant byte first.  They are starting
+         values, not locks: the player can change anything afterwards, and
+         bit 0 (Reset) is masked off by the core whatever is written here.
+
+           bit  2-4   Scandoubler Fx  0 None 1 HQ2x 2 CRT25 3 CRT50 4 CRT75
+           bit 10     Debug overlay   0 Off  1 On
+           bit 11-12  Vblank IRQ line 0 = 256 (end of picture, the default and
+                      the one Emeraldia's dolphin settles), 1 = 224 (MAME),
+                      2 = 240 (FBNeo)
+           bit 13     Sprite bank     0 Live 1 Latch per frame
+           bit 14     BGM fade        0 Normal 1 Ignore
+           bit 15-16  Rotate          0 Off 1 On 2 On (4:3)   [vertical sets]
+           bit 17     Flip            0 Off 1 On              [vertical sets]
+           bit 18     Overlay rows 24-31  0 Boot/D7  1 C219 sound
+
+         All zero is the shipping default for every set, which is why an .mra
+         written before these bytes existed behaves identically: it sends four
+         and the core reads the rest as 0.
+
+         EDIT THESE BY HAND.  That is the point of them being here: turning an
+         option on for one game costs an .mra edit and a reload, not a
+         twenty-minute fitter run. -->
+    <rom index="1"><part>01 64 01 00 00 00 00</part></rom>
+
+
+    <!-- Factory EEPROM.  MAME ships this set a default 28C16 image
+         and says why: otherwise the game locks up on its first boot.
+         Without it the core falls back to a compiled-in default that
+         belongs to a different game.  ioctl_index 2, the same index
+         the <nvram> block below uses, sent first so a save wins. -->
+    <rom index="2" zip="cgangpzlj.zip|cgangpzl.zip|namcoc69.zip" md5="none">
+        <part name="eeprom_cgangpzlj" crc="ef5ddff2"/>
+    </rom>
+    <!-- 28C16 EEPROM, 2 KiB.  ioctl index 2: index 0 is the ROM stream and
+         254 is the switches block, so 2 is free, and it is the commonest
+         nvram index at this size across the MiSTer arcade MRA set.
+         The core presents the bytes on ioctl_din and asks for a save two
+         seconds after the game stops writing; see docs/nvram_save.md. -->
+    <nvram index="2" size="2048"/>
+
+    <!-- The DSW port, read through the MCU input mux (MCU port 6 select == 1).
+         Names, bits and polarity are taken from MAME 0.289's own definition,
+         which is identical for all 21 sets in the family.  Checked by running
+         `mame -listxml SET` for every one of them:
+
+             DIP2 (Freeze)   mask 1    Off=1 default, On=0
+             DIP1 (Test)     mask 2    Off=2 default, On=0
+             Service Mode    mask 64   Off=64 default, On=0
+
+         MAME numbers the physical switches the other way round from the bits,
+         so DIP2 sits on bit 0.  Service Mode was missing here until
+         2026-08-31; it defaults Off, so adding it does not change how any set
+         boots.  Note for whoever edits this next: an XML comment may not
+         contain a double dash, and check_mra_stream below will reject the
+         .mra if one creeps back in. -->
+    <switches default="FF" base="0">
+        <dip name="DIP2 (Freeze)" bits="0" ids="On,Off"/>
+        <dip name="DIP1 (Test)" bits="1" ids="On,Off"/>
+        <dip name="Service Mode" bits="6" ids="On,Off"/>
+    </switches>
+
+    <buttons names="Button 1,Button 2,Button 3,Start,Coin,Pause" default="A,B,X,Start,Select,R"/>
+</misterromdescription>
