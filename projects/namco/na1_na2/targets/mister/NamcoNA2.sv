@@ -404,19 +404,24 @@ endfunction
 
 // --- Pause -----------------------------------------------------------------
 // 이 보드에는 pause 선이 없다.  코어 편의 기능이므로 na2_top 의 ce_en 을
-// 게이트한다 -- 68000·MCU·사운드가 서 있고 비디오는 계속 스캔한다.
+// 게이트한다. na2_top 은 게임 실행과 PCM sample tick 을 멈추되 CRTC 와
+// 렌더러는 계속 스캔한다 -- VGA OSD 도 이 동기 신호가 있어야 보인다.
 // docs/OSD_POLICY.md 2절.
 //
 // ioctl_download 에서 반드시 푼다.  ROM 로드 내내 CPU 는 리셋에 잡혀 있고,
 // 로드 뒤 pause 가 남아 있으면 화면상 행과 구별되지 않는다.
 wire pause_btn = joystick_0[9] | joystick_1[9];   // J1 7번째 = Pause = bit 9
-reg  pause_btn_d, pause_latch;
-always @(posedge clk_sys) begin
-	pause_btn_d <= pause_btn;
-	if (ioctl_download)                  pause_latch <= 1'b0;
-	else if (~pause_btn_d & pause_btn)   pause_latch <= ~pause_latch;
-end
-wire pause_core = pause_latch | (OSD_STATUS & ~status[19]);
+wire pause_latch, pause_core;
+na2_pause u_pause (
+	.clk           (clk_sys),
+	.rst           (rst_sys),
+	.download      (ioctl_download),
+	.button        (pause_btn),
+	.osd_open      (OSD_STATUS),
+	.osd_pause_off (status[19]),
+	.button_pause  (pause_latch),
+	.paused        (pause_core)
+);
 
 wire [7:0] in_p1 = na2_port(joystick_0, joystick_0[7]);
 wire [7:0] in_p2 = na2_port(joystick_1, joystick_1[7]);

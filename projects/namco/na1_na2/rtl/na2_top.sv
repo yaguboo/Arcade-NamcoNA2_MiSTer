@@ -78,7 +78,7 @@ module na2_top #(
 ) (
     input  wire        clk,            // 50.113 MHz master clock
     input  wire        rst,            // synchronous, active high
-    input  wire        ce_en,          // global clock enable (pause/download)
+    input  wire        ce_en,          // game enable; video scan keeps running
 
     // --- main memory: work RAM + program ROM + mask ROM --------------------
     output wire [23:1] mem_addr,
@@ -298,7 +298,11 @@ module na2_top #(
   // =====================================================================
   // C70 stand-in  *** TEMPORARY_HLE ***
   // =====================================================================
-  wire vblank_rise;   // from the CRTC, below
+  // Pause freezes game time, not the signal feeding the VGA monitor/OSD.
+  // MCU IRQ1 and game/probe frame bookkeeping must not see the display-only
+  // frames generated while execution is stopped.
+  wire video_vblank_rise;
+  wire vblank_rise = video_vblank_rise & ce_en;
   wire [4:0] u_c70_st;   // driven inside the generate below
   wire        c70_req, c70_we, c70_busy;
   wire [1:0]  c70_ds;
@@ -1375,7 +1379,9 @@ module na2_top #(
     if (rst) begin
       snd_acc  <= 27'd0;
       snd_tick <= 1'b0;
-    end else begin
+    end else if (ce_en) begin
+      // Keep a tick already issued on the pause boundary pending until
+      // resume. The C219 input below masks it while execution is stopped.
       snd_tick <= 1'b0;
       if (snd_acc + SND_HZ >= CLK_HZ) begin
         snd_acc  <= snd_acc + SND_HZ - CLK_HZ;
@@ -1394,7 +1400,9 @@ module na2_top #(
   na2_c219 u_c219 (
       .clk         (clk),
       .rst         (rst),
-      .sample_tick (snd_tick),
+      // Let an in-flight sample finish its memory transaction, but do not
+      // start another while paused, including a tick on the pause boundary.
+      .sample_tick (snd_tick & ce_en),
       .reg_we      (snd_reg_we),
       .reg_addr    (snd_reg_addr),
       .reg_din     (snd_reg_din),
@@ -1435,8 +1443,9 @@ module na2_top #(
   // add_route(1, "speaker", 1.00, 0)).  Whether that is the PCB's wiring or
   // MAME compensating for something else is UNKNOWN; it is reproduced because
   // it is what the audio this core is checked against does.
-  assign aud_l = snd_r;
-  assign aud_r = snd_l;
+  // Holding a nonzero PCM value is a DC output, not silence.
+  assign aud_l = ce_en ? snd_r : 16'sd0;
+  assign aud_r = ce_en ? snd_l : 16'sd0;
 
   wire [7:0]  pal_r, pal_g, pal_b;
 
@@ -1576,7 +1585,7 @@ module na2_top #(
   wire        p12_bwr    = ce_en & cpu_wr & cpu_ack & sel_workram;
   wire        p12_rd     = ce_en & cpu_rd & cpu_ack & sel_workram;
   wire        p12_c70wr  = (mgrant == GR_C70) & mem_we & mem_ack;
-  wire        p12_line   = ce_pix & (hpos == 9'd397);          // H_TOTAL - 1
+  wire        p12_line   = ce_en & ce_pix & (hpos == 9'd397); // H_TOTAL - 1
   wire        p12_pend   = cpu_rd | cpu_wr;       // a cycle waiting for its ack
   wire        p12_iack   = (cpu_fc == 3'b111) & ~cpu_as_n;
 
@@ -1882,7 +1891,7 @@ module na2_top #(
       .irq_line_sel(irq_line_sel),
       .clk        (clk),
       .rst        (rst),
-      .ce_en      (ce_en),
+      .ce_en      (1'b1), // video sync/pixels must survive OSD and pad pause
       .ce_pix     (ce_pix),
       .hpos       (hpos),
       .vpos       (vpos),
@@ -1890,7 +1899,7 @@ module na2_top #(
       .vblank     (vblank),
       .hsync      (hsync),
       .vsync      (vsync),
-      .vblank_rise(vblank_rise)
+      .vblank_rise(video_vblank_rise)
   );
 
   // =====================================================================

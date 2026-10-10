@@ -92,9 +92,10 @@
 
     <!-- Factory EEPROM.  MAME ships this set a default 28C16 image
          and says why: otherwise the game locks up on its first boot.
-         Without it the core falls back to a compiled-in default that
-         belongs to a different game.  ioctl_index 2, the same index
-         the <nvram> block below uses, sent first so a save wins. -->
+         Measured on the board 2026-10-06: from an erased part this set
+         stops on NOTICE or a black screen; with this image it boots.
+         ioctl_index 2, the same index the <nvram> block below uses,
+         sent first so a save wins. -->
     <rom index="2" zip="quiztou.zip|namcoc70.zip" md5="none">
         <part name="eeprom" crc="57a478a6"/>
     </rom>
