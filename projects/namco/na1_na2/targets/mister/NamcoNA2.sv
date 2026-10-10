@@ -104,6 +104,9 @@ localparam CONF_STR = {
 	"-;",
 	"O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[4:2],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+	// Display-only phase correction. Zero preserves existing configurations.
+	// Hide/bypass it when scandoubling or the rotation framebuffer is active.
+	"H2O[26:24],CRT V-position,Original,Up 2,Up 4,Up 8,Up 12,Up 16,Up 20,Up 24;",
 	// Two of the thirteen NA-1 games are ROT90 in MAME -- Fighter & Attacker
 	// and F/A -- because their cabinets are on their side.  The core draws the
 	// raster the board draws, unrotated, which is what a real NA-1 puts out
@@ -266,7 +269,7 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	// H0 hides the vertical-only video items, H1 the whole Debug page.
 	// A mask BIT SET means "hide", so each is the negation of the thing that
 	// should show it.  docs/na1_verification.md section 3.
-	.status_menumask({14'd0, ~debug_menu_en, ~board_vertical}),
+	.status_menumask({13'd0, ~crt_shift_available, ~debug_menu_en, ~board_vertical}),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_wr(ioctl_wr),
@@ -820,6 +823,20 @@ na2_sdram sdram
 
 wire [2:0] fx = status[4:2];
 
+wire crt_shift_available = ~forced_scandoubler & (fx == 3'd0) & no_rotate & ~flip;
+wire crt_vsync;
+na2_crt_shift u_crt_shift (
+	.clk       (clk_sys),
+	.rst       (reset),
+	.ce_pix    (ce_pix),
+	.hpos      (hpos),
+	.vpos      (vpos),
+	.vsync_in  (vsync),
+	.enable    (crt_shift_available),
+	.selection (status[26:24]),
+	.vsync_out (crt_vsync)
+);
+
 arcade_video #(.WIDTH(304), .DW(24)) arcade_video
 (
 	.*,
@@ -829,7 +846,7 @@ arcade_video #(.WIDTH(304), .DW(24)) arcade_video
 	.HBlank(hblank),
 	.VBlank(vblank),
 	.HSync(hsync),
-	.VSync(vsync),
+	.VSync(crt_vsync),
 	.fx(fx)
 );
 
