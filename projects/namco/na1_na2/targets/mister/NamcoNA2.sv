@@ -389,7 +389,16 @@ wire rst_mem  = ~pll_locked;
 // The core also stays in reset while na2_membus reads the SDRAM back and checks
 // it -- see the self-test there; it needs the memory to itself.
 wire st_busy;
-wire reset    = rst_sys | ioctl_download | st_busy;
+wire reset_raw = rst_sys | ioctl_download | st_busy;
+
+// The video raster outlives that reset (na2_vrst.sv): `reset` is what the core
+// sees, the raw reset stretched by one clock; `vrst` is what holds the raster
+// and the CRT sync adapter.  The raster keeps running through the ROM download
+// so the OSD loading bar has a picture to be drawn on and an analog monitor
+// keeps its sync.
+wire reset, vrst;
+na2_vrst u_vrst (.clk(clk_sys), .rst(reset_raw), .pll_locked(pll_locked),
+                 .rstc(reset), .vrst(vrst));
 
 ///////////////////////   INPUTS   ///////////////////////////////
 //
@@ -663,6 +672,7 @@ na2_top #(.EEPROM_DEFAULT_FILE("../../rtl/memory/na2_eeprom_default.hex")) na2
 (
 	.clk        (clk_sys),
 	.rst        (reset),
+	.vrst       (vrst),
 	.ce_en      (~pause_core),
 
 	// CG lives on-chip in this target (CG_EXTERNAL defaults to 0), so the
@@ -827,7 +837,7 @@ wire crt_shift_available = ~forced_scandoubler & (fx == 3'd0) & no_rotate & ~fli
 wire crt_vsync;
 na2_crt_shift u_crt_shift (
 	.clk       (clk_sys),
-	.rst       (reset),
+	.rst       (vrst),
 	.ce_pix    (ce_pix),
 	.hpos      (hpos),
 	.vpos      (vpos),

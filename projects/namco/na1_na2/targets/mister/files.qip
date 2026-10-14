@@ -8,6 +8,7 @@
 set_global_assignment -name SYSTEMVERILOG_FILE NamcoNA2.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/na2_pause.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/na2_crt_shift.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/na2_vrst.sv
 set_global_assignment -name SDC_FILE NamcoNA2.sdc
 
 # ---- PLL (retargeted to 50.113 MHz; see rtl/pll/pll_0002.v) ---------------

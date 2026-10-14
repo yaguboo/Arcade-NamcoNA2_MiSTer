@@ -78,6 +78,15 @@ module na2_top #(
 ) (
     input  wire        clk,            // 50.113 MHz master clock
     input  wire        rst,            // synchronous, active high
+    // What holds the video raster (na2_crtc).  The raster is held by THIS and
+    // not by `rst`, so a target can let it run while the board is held in reset
+    // -- the OSD loading bar is drawn on the sync the core puts out, and during
+    // a ROM download there was none.  A target that wants the raster held with
+    // the board connects this to `rst`, which is the old behaviour exactly.
+    // The MiSTer wrapper keeps it running through RESET (na2_vrst.sv) and gives
+    // the core `rst` one clock longer than the board's reset, so both leave
+    // reset on the same clock with the raster at counter 0.
+    input  wire        vrst,
     input  wire        ce_en,          // game enable; video scan keeps running
 
     // --- main memory: work RAM + program ROM + mask ROM --------------------
@@ -302,7 +311,9 @@ module na2_top #(
   // MCU IRQ1 and game/probe frame bookkeeping must not see the display-only
   // frames generated while execution is stopped.
   wire video_vblank_rise;
-  wire vblank_rise = video_vblank_rise & ce_en;
+  // `& ~rst`: the raster can now run while the core is held, and everything
+  // below was written for a CRTC that never pulses during a reset.
+  wire vblank_rise = video_vblank_rise & ce_en & ~rst;
   wire [4:0] u_c70_st;   // driven inside the generate below
   wire        c70_req, c70_we, c70_busy;
   wire [1:0]  c70_ds;
@@ -1480,7 +1491,9 @@ module na2_top #(
       .b        (pal_b)
   );
 
-  wire active = ~hblank & ~vblank;
+  // ~rst: while the core is held the raster may be running (vrst) and the
+  // picture is black -- a raster with sync for the OSD to draw on.
+  wire active = ~hblank & ~vblank & ~rst;
   wire [7:0] bg_r = active ? pal_r : 8'd0;
   wire [7:0] bg_g = active ? pal_g : 8'd0;
   wire [7:0] bg_b = active ? pal_b : 8'd0;
@@ -1890,7 +1903,7 @@ module na2_top #(
   na2_crtc u_crtc (
       .irq_line_sel(irq_line_sel),
       .clk        (clk),
-      .rst        (rst),
+      .rst        (vrst),
       .ce_en      (1'b1), // video sync/pixels must survive OSD and pad pause
       .ce_pix     (ce_pix),
       .hpos       (hpos),
